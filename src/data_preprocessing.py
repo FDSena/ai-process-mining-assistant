@@ -41,9 +41,9 @@ def build_default_output_path(input_path: Path) -> Path:
     Build the output path based on the selected input file name.
 
     Example:
-    data/raw/insurance_claims_event_log.csv
+    data/raw/sales_data.csv
     becomes:
-    data/processed/insurance_claims_event_log_clean.csv
+    data/processed/sales_data_clean.csv
     """
     output_filename = f"{input_path.stem}_clean.csv"
     return PROCESSED_DATA_DIR / output_filename
@@ -51,7 +51,7 @@ def build_default_output_path(input_path: Path) -> Path:
 
 def load_data(input_path: Path) -> pd.DataFrame:
     """
-    Load the raw event log CSV file.
+    Load the raw CSV file.
     """
     if not input_path.exists():
         raise FileNotFoundError(
@@ -90,7 +90,7 @@ def clean_column_names(df: pd.DataFrame) -> pd.DataFrame:
     Clean column names:
     - remove leading/trailing spaces
     - convert to lowercase
-    - replace spaces with underscores
+    - replace spaces, hyphens, dots, slashes, and colons with underscores
     """
     df = df.copy()
 
@@ -100,6 +100,9 @@ def clean_column_names(df: pd.DataFrame) -> pd.DataFrame:
         .str.lower()
         .str.replace(" ", "_", regex=False)
         .str.replace("-", "_", regex=False)
+        .str.replace(".", "_", regex=False)
+        .str.replace("/", "_", regex=False)
+        .str.replace(":", "_", regex=False)
     )
 
     return df
@@ -107,14 +110,11 @@ def clean_column_names(df: pd.DataFrame) -> pd.DataFrame:
 
 def basic_cleaning(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Apply basic cleaning steps to the event log.
+    Apply basic cleaning steps to the dataset.
     """
     df = df.copy()
 
-    # Remove duplicated rows
     df = df.drop_duplicates()
-
-    # Clean column names
     df = clean_column_names(df)
 
     return df
@@ -132,7 +132,7 @@ def save_data(df: pd.DataFrame, output_path: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Preprocess business process event logs."
+        description="Preprocess CSV datasets."
     )
 
     parser.add_argument(

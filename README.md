@@ -68,27 +68,6 @@ The project can be used with different types of CSV datasets, such as:
 - e-commerce orders
 - operational logs
 
-The first test dataset is an insurance claims event log, but the project is no longer limited to process mining.
-
-Example columns from the current dataset:
-
-| Column | Description |
-|---|---|
-| case_id | Unique claim or case identifier |
-| activity_name | Activity or step name |
-| timestamp | Date and time of the event |
-| claimant_name | Name of the claimant |
-| agent_name | Name of the agent |
-| adjuster_name | Name of the adjuster |
-| claim_amount | Amount of the insurance claim |
-| claimant_age | Age of the claimant |
-| type_of_policy | Type of insurance policy |
-| car_make | Car brand |
-| car_model | Car model |
-| car_year | Car year |
-| type_of_accident | Type of accident |
-| user_type | Human or RPA |
-
 ## Stack
 
 - Python
@@ -131,12 +110,14 @@ ai-csv-analyst-assistant/
 Work in progress, built over summer 2026 alongside a part-time job.
 
 - [x] Basic CSV preprocessing
-- [ ] Generic dataset profiler
-- [ ] Data quality checks
-- [ ] Automatic insight generation
+- [x] Generic dataset profiler
+- [x] Data quality checks
+- [x] Automatic insight generation
+- [x] Markdown report generation
+- [x] Local LLM-powered report generation with Ollama
 - [ ] SQLite storage
-- [ ] LLM-powered explanations
 - [ ] Streamlit dashboard
+- [ ] Chat interface
 - [ ] Optional chart generation
 - [ ] Tests
 - [ ] CI with GitHub Actions
