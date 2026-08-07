@@ -1,7 +1,7 @@
 from pathlib import Path
 import argparse
 import pandas as pd
-
+import pm4py
 
 RAW_DATA_DIR = Path("data/raw")
 PROCESSED_DATA_DIR = Path("data/processed")
@@ -51,16 +51,77 @@ def build_default_output_path(input_path: Path) -> Path:
 
 def load_data(input_path: Path) -> pd.DataFrame:
     """
-    Load the raw CSV file.
+    Load CSV or XES event log files.
     """
     if not input_path.exists():
         raise FileNotFoundError(
-            f"File not found: {input_path}. "
-            "Please check the file path or place the dataset in data/raw/."
+            f"File not found: {input_path}"
         )
 
-    return pd.read_csv(input_path)
+    suffix = input_path.suffix.lower()
 
+    if suffix == ".xes" or input_path.name.lower().endswith(".xes.gz"):
+        print("Detected XES event log.")
+
+        event_log = pm4py.read_xes(
+            str(input_path)
+        )
+
+        df = pm4py.convert_to_dataframe(
+            event_log
+        )
+
+        print(
+            f"XES loaded with "
+            f"{len(df)} events and "
+            f"{len(df.columns)} columns."
+        )
+
+        return df
+
+    if suffix == ".csv":
+        errors = []
+
+        for encoding in [
+            "utf-8",
+            "utf-8-sig",
+            "cp1252",
+            "latin-1",
+        ]:
+            try:
+                df = pd.read_csv(
+                    input_path,
+                    sep=None,
+                    engine="python",
+                    encoding=encoding,
+                )
+
+                if df.empty:
+                    raise ValueError(
+                        "The CSV file contains no usable rows."
+                    )
+
+                print(
+                    f"CSV loaded with encoding "
+                    f"'{encoding}' and "
+                    f"{len(df.columns)} columns."
+                )
+
+                return df
+
+            except Exception as error:
+                errors.append(
+                    f"{encoding}: {error}"
+                )
+
+        raise ValueError(
+            "Unable to read the CSV file.\n"
+            + "\n".join(errors)
+        )
+
+    raise ValueError(
+        f"Unsupported file format: {input_path.suffix}"
+    )
 
 def inspect_data(df: pd.DataFrame, title: str) -> None:
     """

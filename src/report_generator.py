@@ -165,7 +165,6 @@ def generate_rule_based_report(insights: dict, quality_report: dict | None = Non
     report_parts.append("- Review the columns with high cardinality before using them in machine learning models.")
     report_parts.append("- Check whether the dataset contains a meaningful target variable for prediction.")
     report_parts.append("- Create visualizations for the most important numerical and categorical columns.")
-    report_parts.append("- Use an LLM layer later to rewrite this report in a more business-friendly style.")
     report_parts.append("")
 
     return "\n".join(report_parts)

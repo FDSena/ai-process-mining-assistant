@@ -137,7 +137,7 @@ def detect_possible_id_columns(
     uniqueness_threshold: float = 0.9,
 ) -> dict:
     """
-    Detect columns that may be identifiers because most values are unique.
+    Detect columns that may represent identifiers.
     """
     possible_id_columns = {}
 
@@ -150,10 +150,36 @@ def detect_possible_id_columns(
         if column in date_columns:
             continue
 
-        unique_ratio = df[column].nunique(dropna=True) / row_count
+        column_name = column.lower()
+        series = df[column]
 
-        if unique_ratio >= uniqueness_threshold:
-            possible_id_columns[column] = round(float(unique_ratio), 4)
+        unique_count = series.nunique(dropna=True)
+        unique_ratio = unique_count / row_count
+
+        looks_like_id_name = (
+            column_name == "id"
+            or column_name.endswith("_id")
+            or column_name.startswith("id_")
+            or column_name in {
+                "identifier",
+                "identifiant",
+                "uuid",
+                "reference",
+                "ref",
+                "case_id",
+            }
+        )
+
+        is_highly_unique_text = (
+            not pd.api.types.is_numeric_dtype(series)
+            and unique_ratio >= uniqueness_threshold
+        )
+
+        if looks_like_id_name or is_highly_unique_text:
+            possible_id_columns[column] = {
+                "unique_count": int(unique_count),
+                "unique_ratio": round(float(unique_ratio), 4),
+            }
 
     return possible_id_columns
 
@@ -195,18 +221,27 @@ def detect_date_columns(df: pd.DataFrame) -> list[str]:
 
     return date_columns
 
-def detect_invalid_dates(df: pd.DataFrame, date_columns: list[str]) -> dict:
+def detect_invalid_dates(
+    df: pd.DataFrame,
+    date_columns: list[str],
+) -> dict:
     """
-    Detect invalid date values in detected date columns.
+    Detect invalid non-empty values in detected date columns.
     """
     invalid_dates = {}
 
     for column in date_columns:
+        original = df[column]
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", UserWarning)
-            converted = pd.to_datetime(df[column], errors="coerce")
+            converted = pd.to_datetime(
+                original,
+                errors="coerce",
+            )
 
-        invalid_count = int(converted.isna().sum())
+        invalid_mask = original.notna() & converted.isna()
+        invalid_count = int(invalid_mask.sum())
 
         if invalid_count > 0:
             invalid_dates[column] = invalid_count
@@ -266,8 +301,10 @@ def generate_quality_alerts(report: dict) -> list[str]:
 
     if report["high_cardinality_columns"]:
         columns = ", ".join(report["high_cardinality_columns"].keys())
+  
         alerts.append(
-            "Some categorical columns have many unique values and may need special handling: "
+            "Some columns have high cardinality"
+            " and may need special handling: "
             + columns
             + "."
         )
@@ -275,7 +312,7 @@ def generate_quality_alerts(report: dict) -> list[str]:
     if report["possible_id_columns"]:
         columns = ", ".join(report["possible_id_columns"].keys())
         alerts.append(
-            "Some columns look like identifier columns because most values are unique: "
+            "Some columns appear to be identifier columns based on their name or uniqueness pattern: "
             + columns
             + "."
         )

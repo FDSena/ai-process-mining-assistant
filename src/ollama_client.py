@@ -36,6 +36,14 @@ Rules:
 - If a section says empty lists like [] or empty dictionaries like {{}}, explain that no issue was detected for that point.
 - Keep the explanation concise, structured, and easy to understand for a non-technical user.
 - Use only the numbers and facts present in the report.
+- Preserve every number exactly as written.
+- Never add currency symbols unless they already appear.
+- Do not change decimal places or digit grouping.
+- Do not summarize numerical ranges incorrectly.
+- Do not merge high-cardinality columns with low-cardinality categorical columns.
+- Do not invent relationships or conclusions.
+- If information appears contradictory, preserve the technical report instead of guessing.
+- A column identified as an identifier must not be described as an ordinary categorical feature.
 
 Technical report:
 {report_content}
@@ -72,8 +80,28 @@ def ask_ollama(
             "Ollama took too long to respond."
         ) from exc
 
-    data = response.json()
-    return data.get("response", "").strip()
+    try:
+        data = response.json()
+    except requests.exceptions.JSONDecodeError as error:
+        raise RuntimeError(
+            "Ollama returned an invalid JSON response."
+        ) from error
+
+    output = data.get("response", "").strip()
+
+    if not output:
+        raise RuntimeError(
+            "Ollama responded, but no text was generated."
+    )
+
+
+    if "$" not in prompt and "$" in output:
+        raise RuntimeError(
+            "Ollama added a currency symbol that was not present "
+            "in the technical report."
+    )
+
+    return output
 
 
 def save_llm_output(output_text: str, output_path: Path) -> None:

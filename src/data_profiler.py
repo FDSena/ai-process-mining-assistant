@@ -2,7 +2,7 @@ from pathlib import Path
 import argparse
 import json
 import pandas as pd
-
+import warnings
 
 PROCESSED_DATA_DIR = Path("data/processed")
 REPORTS_DIR = Path("reports")
@@ -71,38 +71,102 @@ def load_data(input_path: Path) -> pd.DataFrame:
 
 def detect_column_types(df: pd.DataFrame) -> dict:
     """
-    Detect numerical, categorical, datetime, and boolean columns.
+    Detect numerical, categorical, text, datetime,
+    boolean, and identifier columns.
     """
     numerical_columns = []
     categorical_columns = []
+    text_columns = []
     datetime_columns = []
     boolean_columns = []
+    identifier_columns = []
+
+    row_count = len(df)
 
     for column in df.columns:
         series = df[column]
+        column_name = column.lower()
 
         if pd.api.types.is_bool_dtype(series):
             boolean_columns.append(column)
+            continue
 
-        elif pd.api.types.is_numeric_dtype(series):
+        if pd.api.types.is_numeric_dtype(series):
             numerical_columns.append(column)
+            continue
 
+        non_missing = series.dropna()
+
+        if non_missing.empty:
+            categorical_columns.append(column)
+            continue
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+
+            converted_dates = pd.to_datetime(
+                non_missing,
+                errors="coerce",
+            )
+
+        valid_dates_ratio = converted_dates.notna().mean()
+
+        if valid_dates_ratio >= 0.8:
+            datetime_columns.append(column)
+            continue
+
+        unique_count = non_missing.nunique()
+        unique_ratio = (
+            unique_count / row_count
+            if row_count > 0
+            else 0
+        )
+
+        id_keywords = (
+            "id",
+            "identifier",
+            "identifiant",
+            "uuid",
+            "reference",
+            "ref",
+            "case_id",
+        )
+
+        looks_like_identifier = (
+            column_name == "id"
+            or column_name.endswith("_id")
+            or column_name.startswith("id_")
+            or column_name in {
+                "identifier",
+                "identifiant",
+                "uuid",
+                "reference",
+                "ref",
+                "case_id",
+            }
+        )
+
+        if looks_like_identifier:
+            identifier_columns.append(column)
+            continue
+
+        average_length = (
+            non_missing.astype(str).str.len().mean()
+        )
+
+        if average_length > 50:
+            text_columns.append(column)
         else:
-            converted_dates = pd.to_datetime(series, errors="coerce")
-            valid_dates_ratio = converted_dates.notna().mean()
-
-            if valid_dates_ratio >= 0.8:
-                datetime_columns.append(column)
-            else:
-                categorical_columns.append(column)
+            categorical_columns.append(column)
 
     return {
         "numerical_columns": numerical_columns,
         "categorical_columns": categorical_columns,
+        "text_columns": text_columns,
         "datetime_columns": datetime_columns,
         "boolean_columns": boolean_columns,
+        "identifier_columns": identifier_columns,
     }
-
 
 def get_missing_values(df: pd.DataFrame) -> dict:
     """
